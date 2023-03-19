@@ -153,5 +153,10 @@ def avg_close_x(currency):
     return str(xbtzar['avg_close']) if currency == 'XBTZAR' else str(ethzar['avg_close'])
 
 
+@app.route('/', methods=['GET'])
+def hello_world():
+    return 'Hello from Model Server API'
+
+
 if __name__ == '__main__':
     app.run()
