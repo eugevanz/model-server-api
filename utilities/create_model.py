@@ -1,10 +1,9 @@
-import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+import numpy as np
+from sklearn.model_selection import GridSearchCV
 import joblib as jb
-from requests import get
-import time
 
 candles = pd.read_csv('assets/model.csv')
 candles = candles.drop('Unnamed: 0', axis=1)
@@ -24,16 +23,32 @@ candles.vol_1 = candles.vol_1.astype(float)
 candles.vol_2 = candles.vol_2.astype(float)
 candles.vol_3 = candles.vol_3.astype(float)
 candles.EMA12 = candles.EMA12.astype(float)
+candles.EMA12_diff = candles.EMA12_diff.astype(float)
+candles.signal = candles.signal.astype(bool)
 
-ind_vars = candles[['tminus_1', 'tminus_2', 'tminus_3', 'vol_1', 'vol_2', 'vol_3']]
+ind_vars = candles[['tminus_1', 'tminus_2', 'tminus_3', 'vol_1', 'vol_2', 'vol_3', 'EMA12_diff']]
 dep_vars = candles.signal
-
-model = LogisticRegression(class_weight='balanced')
 
 ind_train, ind_test, dep_train, dep_test = train_test_split(
     ind_vars, dep_vars, test_size=0.3, shuffle=False
 )
 
-model.fit(ind_vars, dep_vars)
+param_grid = [{
+    'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+    'C': np.logspace(-4, 4, 20),
+    'solver': ['lbfgs', 'newton-cg', 'liblinear', 'sag', 'saga'],
+    'max_iter': [100, 1000, 2500, 5000]
+}]
 
-jb.dump(model, 'assets/model.pkl')
+clf = GridSearchCV(
+    LogisticRegression(),
+    param_grid=param_grid,
+    cv=3,
+    verbose=True,
+    n_jobs=-1
+)
+
+best_clf = clf.fit(ind_train, dep_train)
+
+print(f'Accuracy - {best_clf.score(ind_test, dep_test)}:.2f')
+jb.dump(best_clf.best_estimator_, 'assets/model.pkl')
