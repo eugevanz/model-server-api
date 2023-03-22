@@ -61,7 +61,7 @@ def get_candles(pair):
 
     late_close = df.close.tolist()[-1]
     late_ema = df.EMA12.tolist()[-1]
-    late_signal = df.prediction.tolist()[-1] and (late_ema > late_close)
+    late_signal = df.prediction.tolist()[-1] and (late_ema < late_close)
 
     max_high = df.high.idxmax()
     min_low = df.low.idxmin()
