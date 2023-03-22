@@ -49,7 +49,6 @@ def get_candles(pair):
 
     df['EMA12'] = df.close.ewm(span=12).mean()
     df['EMA12_diff'] = df[['EMA12', 'close']].pct_change(axis=1)['close'] * 100.0
-    df.EMA12 = df.EMA12.apply(np.floor)
     features.append('EMA12_diff')
 
     df.dropna(inplace=True)
