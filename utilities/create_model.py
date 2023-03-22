@@ -33,22 +33,18 @@ ind_train, ind_test, dep_train, dep_test = train_test_split(
     ind_vars, dep_vars, test_size=0.3, shuffle=False
 )
 
-param_grid = [{
-    'penalty': ['l1', 'l2', 'elasticnet', 'none'],
-    'C': np.logspace(-4, 4, 20),
-    'solver': ['lbfgs', 'newton-cg', 'liblinear', 'sag', 'saga'],
-    'max_iter': [100, 1000, 2500, 5000]
-}]
-
-clf = GridSearchCV(
+estimator = GridSearchCV(
     LogisticRegression(),
-    param_grid=param_grid,
+    param_grid=[{
+        'penalty': ['l1', 'l2', 'elasticnet', None],
+        'C': np.logspace(-4, 4, 20),
+        'solver': ['lbfgs', 'newton-cg', 'liblinear', 'sag', 'saga'],
+        'max_iter': [100, 1000, 2500, 5000]
+    }],
     cv=3,
     verbose=True,
     n_jobs=-1
-)
+).fit(ind_train, dep_train)
 
-best_clf = clf.fit(ind_train, dep_train)
-
-print(f'Accuracy - {best_clf.score(ind_test, dep_test)}:.2f')
-jb.dump(best_clf.best_estimator_, 'assets/model.pkl')
+print(f'Accuracy - {(estimator.score(ind_test, dep_test) * 100.0):.2f}')
+jb.dump(estimator.best_estimator_, 'assets/model.pkl')
