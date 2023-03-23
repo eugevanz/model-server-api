@@ -31,9 +31,9 @@ candles['change'] = candles.close.pct_change()
 
 lagged()
 
-candles['EMA12'] = candles.close.ewm(span=12).mean()
-candles['EMA12_diff'] = candles[['EMA12', 'close']].pct_change(axis=1)['close'] * 100.0
-candles.EMA12 = candles.EMA12.apply(np.floor)
+candles['ema12'] = candles.close.ewm(span=12).mean()
+candles['ema12_diff'] = candles[['ema12', 'close']].pct_change(axis=1)['close'] * 100.0
+candles.ema12 = candles.ema12.apply(np.floor)
 
 candles.dropna(inplace=True)
 

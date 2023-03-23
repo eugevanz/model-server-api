@@ -47,9 +47,9 @@ def get_candles(pair):
 
     features = lagged()
 
-    df['EMA12'] = df.close.ewm(span=12).mean()
-    df['EMA12_diff'] = df[['EMA12', 'close']].pct_change(axis=1)['close'] * 100.0
-    features.append('EMA12_diff')
+    df['ema12'] = df.close.ewm(span=12).mean()
+    df['ema12_diff'] = df[['ema12', 'close']].pct_change(axis=1)['close'] * 100.0
+    features.append('ema12_diff')
 
     df.dropna(inplace=True)
 
@@ -60,7 +60,7 @@ def get_candles(pair):
     df['prediction'] = list(model.predict(df[features]))
 
     late_close = df.close.tolist()[-1]
-    late_ema = df.EMA12.tolist()[-1]
+    late_ema = df.ema12.tolist()[-1]
     late_signal = df.prediction.tolist()[-1] and (late_ema < late_close)
 
     max_high = df.high.idxmax()

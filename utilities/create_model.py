@@ -22,11 +22,11 @@ candles.tminus_3 = candles.tminus_3.astype(float)
 candles.vol_1 = candles.vol_1.astype(float)
 candles.vol_2 = candles.vol_2.astype(float)
 candles.vol_3 = candles.vol_3.astype(float)
-candles.EMA12 = candles.EMA12.astype(float)
-candles.EMA12_diff = candles.EMA12_diff.astype(float)
+candles.ema12 = candles.ema12.astype(float)
+candles.ema12_diff = candles.ema12_diff.astype(float)
 candles.signal = candles.signal.astype(bool)
 
-ind_vars = candles[['tminus_1', 'tminus_2', 'tminus_3', 'vol_1', 'vol_2', 'vol_3', 'EMA12_diff']]
+ind_vars = candles[['tminus_1', 'tminus_2', 'tminus_3', 'vol_1', 'vol_2', 'vol_3', 'ema12_diff']]
 dep_vars = candles.signal
 
 ind_train, ind_test, dep_train, dep_test = train_test_split(
