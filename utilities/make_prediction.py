@@ -90,22 +90,6 @@ def add_to_database(df, tbl_name):
     return status
 
 
-def select_db(query):
-    result = 'Nothing Returned'
-    try:
-        # Create the SQLAlchemy engine
-        engine = create_engine(getenv('RENDER_SQL_EXT'), echo=True, future=True)
-        # Define the query to select data from the table
-        with engine.connect() as connection:
-            result = connection.execute(text(query))
-
-        # df = pd.read_sql(f'select * from {tbl_name}', con=engine)
-    except Exception as error:
-        print(error)
-
-    return result
-
-
 if __name__ == '__main__':
     xbtzar_df, xbtzar_deriv = cleaning('XBTZAR')
     ethzar_df, ethzar_deriv = cleaning('ETHZAR')
