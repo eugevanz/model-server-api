@@ -33,7 +33,7 @@ def balance(asset):
 @app.route('/candles/<string:tbl_name>/', methods=['GET'])
 def candles(tbl_name):
     result = []
-    query = text('SELECT :col_name FROM :tbl_name')
+    query = text('SELECT * FROM :tbl_name')
     try:
         # Create the SQLAlchemy engine
         engine = create_engine(getenv('RENDER_SQL_EXT'), echo=True, future=True)
