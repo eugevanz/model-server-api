@@ -8,9 +8,6 @@ from dotenv import load_dotenv
 from requests import get
 from sqlalchemy import create_engine, text
 
-# from sqlalchemy.sql import text
-# import psycopg2 as pg2
-
 load_dotenv()
 api_key_id = getenv('LUNO_API_KEY_ID')
 api_key_secret = getenv('LUNO_API_KEY_SECRET')
@@ -79,12 +76,6 @@ def cleaning(pair):
     return df, derivatives
 
 
-# def connect():
-#     connection = engine.connect()
-#     connection.autocommit = True
-#
-#     return connection
-
 def add_to_database(df, tbl_name):
     status = 'add_to_database FAILED'
     try:
@@ -107,7 +98,6 @@ def select_db(query):
         # Define the query to select data from the table
         with engine.connect() as connection:
             result = connection.execute(text(query))
-            result = pd.DataFrame(result.fetchall())
 
         # df = pd.read_sql(f'select * from {tbl_name}', con=engine)
     except Exception as error:
