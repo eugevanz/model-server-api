@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from requests import get
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 
 load_dotenv()
 api_key_id = getenv('LUNO_API_KEY_ID')
@@ -76,8 +76,33 @@ def cleaning(pair):
     return df, derivatives
 
 
+def accounting():
+    transactions = get(
+        'https://api.luno.com/api/1/accounts/5177208153100163675/transactions?min_row=1&max_row=2',
+        auth=(api_key_id, api_key_secret),
+    ).json()['transactions']
+
+    description = transactions[0]['description']
+
+    balance = get(
+        f'https://api.luno.com/api/1/balance?assets=XBT&assets=ETH&assets=ZAR',
+        auth=(api_key_id, api_key_secret),
+    ).json()['balance']
+
+    df = pd.DataFrame(
+        [{
+            'description': description,
+            'XBT': balance[0]['balance'],
+            'ETH': balance[2]['balance'],
+            'ZAR': balance[-1]['balance']
+        }]
+    )
+
+    return df
+
+
 def add_to_database(df, tbl_name):
-    status = 'add_to_database FAILED'
+    status = f'add_to_database {tbl_name} FAILED'
     try:
         # Create the SQLAlchemy engine
         engine = create_engine(getenv('RENDER_SQL_EXT'), echo=True, future=True)
@@ -93,13 +118,10 @@ def add_to_database(df, tbl_name):
 if __name__ == '__main__':
     xbtzar_df, xbtzar_deriv = cleaning('XBTZAR')
     ethzar_df, ethzar_deriv = cleaning('ETHZAR')
+    accounts = accounting()
 
     print(add_to_database(xbtzar_df, 'xbtzar_df'))
     print(add_to_database(ethzar_df, 'ethzar_df'))
     print(add_to_database(xbtzar_deriv, 'xbtzar_deriv'))
     print(add_to_database(ethzar_deriv, 'ethzar_deriv'))
-
-    # print(select_db('select * from xbtzar_df'))
-    # print(select_db('select * from ethzar_df'))
-    # print(select_db('select * from xbtzar_deriv'))
-    # print(select_db('select * from ethzar_deriv'))
+    print(add_to_database(accounts, 'accounts'))
