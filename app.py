@@ -44,7 +44,7 @@ def candles(tbl_name):
     except Exception as error:
         print(error)
 
-    return result
+    return result.to_dict()
 
 
 @app.route('/derives/<string:col_name>/<string:tbl_name>/', methods=['GET'])
