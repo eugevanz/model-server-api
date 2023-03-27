@@ -30,15 +30,16 @@ def balance(asset):
     return res_json[0]['balance']
 
 
-@app.route('/candles/<string:query>/', methods=['GET'])
-def candles(query):
+@app.route('/candles/<string:tbl_name>/', methods=['GET'])
+def candles(tbl_name):
     result = []
+    query = text('SELECT :col_name FROM :tbl_name')
     try:
         # Create the SQLAlchemy engine
         engine = create_engine(getenv('RENDER_SQL_EXT'), echo=True, future=True)
         # Define the query to select data from the table
         with engine.connect() as connection:
-            result = connection.execute(text(query))
+            result = connection.execute(query, {'tbl_name': tbl_name})
             result = pd.DataFrame(result.fetchall())
     except Exception as error:
         print(error)
@@ -48,7 +49,7 @@ def candles(query):
 
 @app.route('/derives/<string:col_name>/<string:tbl_name>/', methods=['GET'])
 def derives(col_name, tbl_name):
-    result = 'Nothing Returned'
+    result = '/derives/<string:col_name>/<string:tbl_name>'
     query = text('SELECT :col_name FROM :tbl_name')
     try:
         # Create the SQLAlchemy engine
