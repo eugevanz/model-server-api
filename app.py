@@ -1,5 +1,5 @@
 from os import getenv
-from flask import Flask
+from flask import Flask, send_file
 from utilities.make_prediction import accounting, cleaning
 
 api_key_id = getenv('LUNO_API_KEY_ID')
@@ -30,6 +30,11 @@ def candles(pair):
 def derives(pair, deriv):
     _, derivatives = cleaning(pair)
     return str(derivatives[deriv][0])
+
+
+@app.route('/model/download/', methods=['GET'])
+def model_download():
+    return send_file('assets/model.pkl')
 
 
 @app.route('/', methods=['GET'])
