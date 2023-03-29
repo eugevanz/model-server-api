@@ -5,8 +5,7 @@ import joblib as jb
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from requests import get
-from sqlalchemy import create_engine
+from requests import get, post
 
 load_dotenv()
 api_key_id = getenv('LUNO_API_KEY_ID')
@@ -49,7 +48,7 @@ def cleaning(pair):
 
     df['ema12'] = df.close.ewm(span=12).mean()
     df['ema12_diff'] = df[['ema12', 'close']].pct_change(axis=1)['close'] * 100.0
-    df.ema12 = df.ema12.apply(np.floor)
+    df.ema12_diff = df.ema12_diff.shift(1)
 
     df.dropna(inplace=True)
 
@@ -62,9 +61,9 @@ def cleaning(pair):
 
     derivatives = pd.DataFrame(
         [{
-            'late_close': df.close.tolist()[-1],
-            'late_ema': df.ema12.tolist()[-1],
-            'late_signal': df.prediction.tolist()[-1] and (df.ema12.tolist()[-1] < df.close.tolist()[-1]),
+            'late_close': df.close.values[-1],
+            'late_ema': df.ema12.values[-1],
+            'late_signal': df.prediction.values[-1],
             'max_high': df.high.idxmax(),
             'min_low': df.low.idxmin(),
             'max_close': df.close.idxmax(),
@@ -92,36 +91,37 @@ def accounting():
     df = pd.DataFrame(
         [{
             'description': description,
-            'XBT': balance[0]['balance'],
-            'ETH': balance[2]['balance'],
-            'ZAR': balance[-1]['balance']
+            'xbt': balance[0]['balance'],
+            'eth': balance[2]['balance'],
+            'zar': balance[-1]['balance']
         }]
     )
 
     return df
 
 
-def add_to_database(df, tbl_name):
-    status = f'add_to_database {tbl_name} FAILED'
-    try:
-        # Create the SQLAlchemy engine
-        engine = create_engine(getenv('RENDER_SQL_EXT'), echo=True, future=True)
-        # Define the query to insert data into the table
-        cursor_result = df.to_sql(tbl_name, con=engine, if_exists='replace', index=False)
-        status = f'add_to_database Succeeded!, {cursor_result}'
-    except Exception as error:
-        print(error)
+def post_market_order(late_signal, counter=None, base=None):
+    late_signal = 'BUY' if late_signal else 'SELL'
+    volume = f'&counter_volume={counter}' if late_signal else f'&base_volume={base}'
 
-    return status
+    try:
+        res_json = post(
+            f'https://api.luno.com/api/1/marketorder?pair=XBTZAR&type={late_signal}{volume}',
+            auth=(api_key_id, api_key_secret),
+        ).json()
+        return res_json['error'] if 'error' in res_json else res_json['order_id']
+    except Exception as error:
+        return error
 
 
 if __name__ == '__main__':
     xbtzar_df, xbtzar_deriv = cleaning('XBTZAR')
-    ethzar_df, ethzar_deriv = cleaning('ETHZAR')
     accounts = accounting()
 
-    print(add_to_database(xbtzar_df, 'xbtzar_df'))
-    print(add_to_database(ethzar_df, 'ethzar_df'))
-    print(add_to_database(xbtzar_deriv, 'xbtzar_deriv'))
-    print(add_to_database(ethzar_deriv, 'ethzar_deriv'))
-    print(add_to_database(accounts, 'accounts'))
+    print(
+        post_market_order(
+            xbtzar_deriv.late_signal[0],
+            counter=accounts.zar[0],
+            base=accounts.xbt[0]
+        )
+    )
