@@ -7,6 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from requests import get, post
 
+# Load environment variables
 load_dotenv()
 api_key_id = getenv('LUNO_API_KEY_ID')
 api_key_secret = getenv('LUNO_API_KEY_SECRET')
@@ -16,88 +17,120 @@ duration = 300
 
 
 def cleaning(pair):
-    res_json = get(
-        f'https://api.luno.com/api/exchange/1/candles?pair={pair}&duration=300&since={since}',
-        auth=(api_key_id, api_key_secret),
-    ).json()['candles']
-    df = pd.DataFrame(res_json)
+    """
+    Downloads candlestick data from the Luno API for a given currency pair,
+    cleans the data, generates lagged features, makes a prediction using a pre-trained model,
+    and returns a DataFrame of the cleaned and lagged data along with a DataFrame of derivatives.
 
-    def lagged():
-        tminuses = []
-        volumes = []
-        for x in range(1, 4):
-            df[f'tminus_{str(x)}'] = df.change.shift(x)
-            df[f'vol_{str(x)}'] = df.volume.shift(x)
-            tminuses.append(f'tminus_{str(x)}')
-            volumes.append(f'vol_{str(x)}')
+    Args:
+        pair (str): The currency pair to download data for, e.g. 'XBTZAR'.
 
-        return tminuses + volumes
+    Returns:
+        A tuple of two DataFrames: the cleaned and lagged data, and a DataFrame of derivatives.
+    """
 
-    df.rename(columns={'timestamp': 'Time'}, inplace=True)
+    try:
+        # Download data
+        res_json = get(
+            f'https://api.luno.com/api/exchange/1/candles?pair={pair}&duration=300&since={since}',
+            auth=(api_key_id, api_key_secret),
+        ).json()['candles']
+        df = pd.DataFrame(res_json)
 
-    df.Time = df.Time.astype(int)
-    df.open = df.open.astype(float)
-    df.close = df.close.astype(float)
-    df.high = df.high.astype(float)
-    df.low = df.low.astype(float)
-    df.volume = df.volume.astype(float)
+        def lagged(num_lags=3):
+            """
+            Creates lagged features for a given DataFrame.
 
-    df['change'] = df.close.pct_change()
+            Args:
+                num_lags (int): Number of lags to create.
 
-    lagged()
+            Returns:
+                A tuple of two lists: tminuses and volumes, where tminuses contains
+                the names of the tminus columns and volumes contains the names of
+                the volume columns.
+            """
+            tminuses = [f'tminus_{i}' for i in range(1, num_lags + 1)]
+            volumes = [f'vol_{i}' for i in range(1, num_lags + 1)]
 
-    df['ema12'] = df.close.ewm(span=12).mean()
-    df['ema12_diff'] = df[['ema12', 'close']].pct_change(axis=1)['close'] * 100.0
-    df.ema12_diff = df.ema12_diff.shift(1)
+            for lag in range(1, num_lags + 1):
+                df[f'tminus_{lag}'] = df.change.shift(lag)
+                df[f'vol_{lag}'] = df.volume.shift(lag)
 
-    df.dropna(inplace=True)
+            return tminuses + volumes
 
-    df['signal'] = np.where(df.change > 0, True, False)
+        # Clean data
+        df.rename(columns={'timestamp': 'Time'}, inplace=True)
 
-    ind_vars = df[['tminus_1', 'tminus_2', 'tminus_3', 'vol_1', 'vol_2', 'vol_3', 'ema12_diff']]
+        df.Time = df.Time.astype(int)
+        df.open = df.open.astype(float)
+        df.close = df.close.astype(float)
+        df.high = df.high.astype(float)
+        df.low = df.low.astype(float)
+        df.volume = df.volume.astype(float)
 
-    model = jb.load('assets/model.pkl')
-    df['prediction'] = list(model.predict(ind_vars))
+        df['change'] = df.close.pct_change()
 
-    derivatives = pd.DataFrame(
-        [{
-            'late_close': df.close.values[-1],
-            'late_ema': df.ema12.values[-1],
-            'late_signal': df.prediction.values[-1],
-            'max_high': df.high.idxmax(),
-            'min_low': df.low.idxmin(),
-            'max_close': df.close.idxmax(),
-            'min_close': df.close.idxmin(),
-            'avg_close': df.close.mean()
-        }]
-    )
+        # Generate lagged features
+        lagged()
 
-    return df, derivatives
+        # Calculate EMA and EMA difference
+        df['ema12'] = df.close.ewm(span=12).mean()
+        df['ema12_diff'] = df[['ema12', 'close']].pct_change(axis=1)['close'] * 100.0
+        df.ema12_diff = df.ema12_diff.shift(1)
+
+        df.dropna(inplace=True)
+
+        df['signal'] = np.where(df.change > 0, True, False)
+
+        ind_vars = df[['tminus_1', 'tminus_2', 'tminus_3', 'vol_1', 'vol_2', 'vol_3', 'ema12_diff']]
+
+        model = jb.load('assets/model.pkl')
+        df['prediction'] = list(model.predict(ind_vars))
+
+        derivatives = pd.DataFrame(
+            [{
+                'late_close': df.close.values[-1],
+                'late_ema': df.ema12.values[-1],
+                'late_signal': df.prediction.values[-1],
+                'max_high': df.high.idxmax(),
+                'min_low': df.low.idxmin(),
+                'max_close': df.close.idxmax(),
+                'min_close': df.close.idxmin(),
+                'avg_close': df.close.mean()
+            }]
+        )
+
+        return df, derivatives
+    except Exception as ex:
+        print(ex)
 
 
 def accounting():
-    transactions = get(
-        'https://api.luno.com/api/1/accounts/5177208153100163675/transactions?min_row=1&max_row=2',
-        auth=(api_key_id, api_key_secret),
-    ).json()['transactions']
+    try:
+        transactions = get(
+            'https://api.luno.com/api/1/accounts/5177208153100163675/transactions?min_row=1&max_row=2',
+            auth=(api_key_id, api_key_secret),
+        ).json()['transactions']
 
-    description = transactions[0]['description']
+        description = transactions[0]['description']
 
-    balance = get(
-        f'https://api.luno.com/api/1/balance?assets=XBT&assets=ETH&assets=ZAR',
-        auth=(api_key_id, api_key_secret),
-    ).json()['balance']
+        balance = get(
+            f'https://api.luno.com/api/1/balance?assets=XBT&assets=ETH&assets=ZAR',
+            auth=(api_key_id, api_key_secret),
+        ).json()['balance']
 
-    df = pd.DataFrame(
-        [{
-            'description': description,
-            'xbt': balance[0]['balance'],
-            'eth': balance[2]['balance'],
-            'zar': balance[-1]['balance']
-        }]
-    )
+        df = pd.DataFrame(
+            [{
+                'description': description,
+                'xbt': balance[0]['balance'],
+                'eth': balance[2]['balance'],
+                'zar': balance[-1]['balance']
+            }]
+        )
 
-    return df
+        return df
+    except Exception as ex:
+        print(ex)
 
 
 def post_market_order(late_signal, counter=None, base=None):
